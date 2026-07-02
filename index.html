@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche de révision — Hadoop : HDFS &amp; MapReduce</title>
+<meta name="description" content="Fiche de révision détaillée sur l'écosystème Hadoop : HDFS (PUT/GET, réplication, tolérance aux pannes) et MapReduce (Map, Shuffle, Reduce, Word Count).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f5f7fa;
+    --paper:#ffffff;
+    --ink:#141a22;
+    --muted:#5c6773;
+    --line:#e4e8ee;
+    --hdfs:#2f5fe0;     /* stockage / bleu */
+    --hdfs-soft:#eaf0fe;
+    --mr:#0f9d8f;       /* traitement / teal */
+    --mr-soft:#e2f5f2;
+    --get:#d23b3f;      /* lecture / rouge */
+    --amber:#e08a2f;
+    --code:#0e1523;
+    --code-ink:#dbe4f3;
+    --ok:#2f9e58;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Newsreader",Georgia,serif;
+    font-size:18px;line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  h1,h2,h3,.disp{font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-.01em}
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(245,247,250,.86);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar{max-width:920px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+  .brand{font-family:"Space Grotesk";font-weight:700;font-size:15px;letter-spacing:.02em}
+  .brand span{color:var(--hdfs)}
+  nav.top{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+  nav.top a{
+    font-family:"JetBrains Mono";font-size:12px;text-decoration:none;color:var(--muted);
+    padding:6px 9px;border-radius:7px;
+  }
+  nav.top a:hover{background:var(--hdfs-soft);color:var(--hdfs)}
+  @media(max-width:680px){nav.top{display:none}}
+
+  /* ---------- Layout ---------- */
+  main{max-width:920px;margin:0 auto;padding:0 22px 90px}
+  section{padding:46px 0;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none}
+  .eyebrow{
+    font-family:"JetBrains Mono";font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  }
+  .eyebrow .no{
+    color:#fff;background:var(--ink);border-radius:6px;padding:2px 8px;font-weight:600;letter-spacing:.05em;
+  }
+  section.hdfs .eyebrow .no{background:var(--hdfs)}
+  section.mr .eyebrow .no{background:var(--mr)}
+  h2{font-size:30px;margin:0 0 8px;font-weight:600;line-height:1.15}
+  h3{font-size:20px;margin:30px 0 8px;font-weight:600}
+  p{margin:0 0 16px}
+  .lead{font-size:20px;color:#2c353f}
+  strong{font-weight:600}
+  em{color:#333b45}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:60px 0 40px;border-top:none}
+  .hero h1{font-size:clamp(34px,7vw,56px);line-height:1.03;font-weight:700;margin:6px 0 16px}
+  .hero .k{font-family:"JetBrains Mono";font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .hero p{font-size:21px;max-width:64ch}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .pill{font-family:"JetBrains Mono";font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+  .pill b{color:var(--ink)}
+
+  /* ---------- Cards / callouts ---------- */
+  .def{
+    background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--hdfs);
+    border-radius:10px;padding:16px 18px;margin:18px 0;
+  }
+  section.mr .def{border-left-color:var(--mr)}
+  .def .term{font-family:"Space Grotesk";font-weight:600;font-size:17px;margin-bottom:2px}
+  .def p{margin:0;font-size:16.5px;color:#333b45}
+
+  .grid{display:grid;gap:14px;margin:18px 0}
+  @media(min-width:620px){.grid.two{grid-template-columns:1fr 1fr}}
+  .mini{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:15px 16px}
+  .mini h4{font-family:"Space Grotesk";margin:0 0 6px;font-size:16px;font-weight:600;display:flex;gap:8px;align-items:center}
+  .mini p{font-size:15.5px;margin:0;color:#3a434e}
+  .tag{font-family:"JetBrains Mono";font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px}
+  .tag.b{background:var(--hdfs-soft);color:var(--hdfs)}
+  .tag.t{background:var(--mr-soft);color:var(--mr)}
+  .tag.r{background:#fbe6e6;color:var(--get)}
+
+  .callout{background:#fff7ec;border:1px solid #f2e0c4;border-radius:10px;padding:14px 16px;margin:20px 0;font-size:16.5px}
+  .callout b{color:#8a5a12}
+  .callout.key{background:var(--hdfs-soft);border-color:#cdddfb}
+  .callout.key b{color:var(--hdfs)}
+
+  /* ---------- Steps ---------- */
+  ol.steps{counter-reset:st;list-style:none;padding:0;margin:16px 0}
+  ol.steps li{position:relative;padding:10px 0 10px 44px;border-top:1px dashed var(--line);font-size:16.5px}
+  ol.steps li:first-child{border-top:none}
+  ol.steps li::before{
+    counter-increment:st;content:counter(st);position:absolute;left:0;top:9px;
+    width:28px;height:28px;border-radius:7px;display:grid;place-items:center;
+    font-family:"JetBrains Mono";font-weight:600;font-size:13px;color:#fff;background:var(--hdfs);
+  }
+  ol.steps.read li::before{background:var(--get)}
+  ol.steps.mrs li::before{background:var(--mr)}
+
+  ul.clean{margin:10px 0 16px;padding-left:22px}
+  ul.clean li{margin:6px 0;font-size:16.5px}
+
+  /* ---------- Code ---------- */
+  pre{
+    background:var(--code);color:var(--code-ink);border-radius:12px;
+    padding:18px 18px;overflow-x:auto;margin:16px 0;font-size:14px;line-height:1.6;
+    border:1px solid #1b2740;
+  }
+  pre code{font-family:"JetBrains Mono";white-space:pre}
+  .c-kw{color:#c792ea}.c-fn{color:#82aaff}.c-str{color:#c3e88d}.c-com{color:#5f7488;font-style:italic}.c-num{color:#f78c6c}
+  code.inl{font-family:"JetBrains Mono";font-size:.86em;background:#eef1f6;padding:2px 6px;border-radius:5px;color:#243}
+
+  /* ---------- SVG figures ---------- */
+  figure{margin:22px 0;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px}
+  figure svg{width:100%;height:auto;display:block}
+  figcaption{font-family:"JetBrains Mono";font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+
+  /* ---------- table ---------- */
+  .tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:15.5px;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tbl th,.tbl td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line)}
+  .tbl th{font-family:"Space Grotesk";font-weight:600;font-size:14px;background:#f0f3f8}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl .mono{font-size:13.5px}
+
+  /* ---------- exam (details) ---------- */
+  details{background:var(--paper);border:1px solid var(--line);border-radius:10px;margin:12px 0;overflow:hidden}
+  details[open]{border-color:var(--mr)}
+  summary{cursor:pointer;padding:15px 18px;font-family:"Space Grotesk";font-weight:600;font-size:16.5px;list-style:none;display:flex;gap:12px;align-items:flex-start}
+  summary::-webkit-details-marker{display:none}
+  summary .q{font-family:"JetBrains Mono";font-size:12px;background:var(--ink);color:#fff;border-radius:5px;padding:3px 7px;flex:0 0 auto;margin-top:1px}
+  summary::after{content:"réponse ▸";margin-left:auto;font-family:"JetBrains Mono";font-weight:500;font-size:12px;color:var(--muted)}
+  details[open] summary::after{content:"masquer ▾";color:var(--mr)}
+  .ans{padding:2px 18px 18px 18px;font-size:16.5px;color:#333b45;border-top:1px solid var(--line);margin-top:2px;padding-top:14px}
+  .ans ul{padding-left:20px}
+
+  footer{max-width:920px;margin:0 auto;padding:30px 22px 60px;color:var(--muted);font-size:14px;font-family:"JetBrains Mono"}
+  footer .r{border-top:1px solid var(--line);padding-top:20px}
+  a.anchor{color:var(--hdfs);text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="brand">Hadoop <span>//</span> fiche de révision</div>
+    <nav class="top">
+      <a href="#overview">01 Vue d'ensemble</a>
+      <a href="#hdfs">02 HDFS</a>
+      <a href="#putget">03 PUT/GET</a>
+      <a href="#panne">04 Pannes</a>
+      <a href="#mapreduce">05 MapReduce</a>
+      <a href="#wordcount">06 Word Count</a>
+      <a href="#exam">07 Questions</a>
+      <a href="#glossaire">08 Glossaire</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="k">Introduction à l'écosystème Hadoop · IABD</div>
+    <h1>HDFS &amp; MapReduce,<br>tout ce qu'il faut savoir.</h1>
+    <p class="lead">Deux idées, une même philosophie : <strong>répartir</strong> pour tenir la charge. HDFS répartit le <strong>stockage</strong> des données sur plusieurs machines ; MapReduce répartit leur <strong>traitement</strong>. Cette fiche couvre les définitions, les schémas de flux, les algorithmes et les questions ouvertes probables.</p>
+    <div class="pills">
+      <span class="pill"><b>2</b> NameNodes</span>
+      <span class="pill"><b>6</b> DataNodes</span>
+      <span class="pill">réplication <b>4</b></span>
+      <span class="pill">bloc <b>128 Mb</b></span>
+      <span class="pill">fichier <b>512 Mb</b> = <b>4 blocs</b></span>
+    </div>
+  </section>
+
+  <!-- 01 OVERVIEW -->
+  <section id="overview">
+    <div class="eyebrow"><span class="no">01</span> Vue d'ensemble</div>
+    <h2>Le problème du Big Data</h2>
+    <p>Quand un fichier devient trop volumineux (téraoctets, pétaoctets), <strong>une seule machine ne suffit plus</strong> : ni pour le stocker, ni pour le traiter en un temps raisonnable, et si son disque tombe en panne, tout est perdu. La réponse de Hadoop tient en une phrase : au lieu d'un gros serveur cher, on utilise <strong>beaucoup de machines ordinaires</strong> qui coopèrent (un <em>cluster</em>).</p>
+
+    <div class="callout key"><b>Idée directrice —</b> On ne fait pas grossir une machine (<em>scalabilité verticale</em>), on <strong>ajoute des machines</strong> (<em>scalabilité horizontale</em>). Chaque machine est jetable : le système survit à la panne de n'importe laquelle.</div>
+
+    <h3>Les deux briques de cette fiche</h3>
+    <div class="grid two">
+      <div class="mini"><h4><span class="tag b">HDFS</span> Le stockage</h4><p>Découpe les fichiers en <strong>blocs</strong>, les répartit sur les machines et en garde des <strong>copies</strong>. Le « disque dur distribué » du cluster.</p></div>
+      <div class="mini"><h4><span class="tag t">MapReduce</span> Le traitement</h4><p>Envoie le <strong>calcul là où sont les données</strong> et l'exécute en parallèle sur chaque machine, puis regroupe les résultats.</p></div>
+    </div>
+    <p style="font-size:16px;color:var(--muted)">À côté, <strong>YARN</strong> joue le chef d'orchestre : il attribue la mémoire et le CPU du cluster aux différents traitements. On ne le détaille pas ici, mais c'est lui qui « lance » les tâches Map et Reduce sur les machines.</p>
+  </section>
+
+  <!-- 02 HDFS DEFS -->
+  <section id="hdfs" class="hdfs">
+    <div class="eyebrow"><span class="no">02</span> HDFS — architecture</div>
+    <h2>Un maître, des esclaves</h2>
+    <p>HDFS suit une architecture <strong>maître / esclave</strong> (<em>master / slave</em>). Un nœud coordonne, les autres stockent. C'est la distinction la plus importante à maîtriser.</p>
+
+    <div class="def"><div class="term">NameNode <span class="mono" style="font-size:12px;color:var(--muted)">— le maître</span></div><p>Ne stocke <strong>aucune donnée</strong>. Il détient les <strong>métadonnées</strong> : l'arborescence des fichiers et surtout la table <em>« quel bloc se trouve sur quels DataNodes »</em>. C'est l'annuaire du cluster. S'il tombe, plus personne ne sait où sont les données → point critique, d'où le besoin d'un second NameNode.</p></div>
+
+    <div class="def"><div class="term">DataNode <span class="mono" style="font-size:12px;color:var(--muted)">— l'esclave</span></div><p>Stocke physiquement les <strong>blocs</strong> de données sur son disque. Il envoie régulièrement un signal de vie (<em>heartbeat</em>) et la liste de ses blocs (<em>block report</em>) au NameNode.</p></div>
+
+    <div class="def"><div class="term">Bloc</div><p>Unité de découpage d'un fichier, <strong>128 Mb par défaut</strong>. Un fichier plus grand est coupé en plusieurs blocs. On utilise de <strong>gros</strong> blocs pour réduire le nombre de métadonnées à gérer et favoriser la lecture séquentielle.</p></div>
+
+    <div class="def"><div class="term">Réplication &amp; facteur de réplication</div><p>Chaque bloc est copié en plusieurs exemplaires sur des machines <strong>différentes</strong>. Le <strong>facteur de réplication</strong> (ici <strong>4</strong>) est le nombre de copies. Règle d'or : jamais deux copies du même bloc sur la même machine, sinon sa panne détruirait deux copies d'un coup.</p></div>
+
+    <h3>Le calcul de découpage</h3>
+    <p>Pour un fichier de <strong>512 Mb</strong> avec des blocs de <strong>128 Mb</strong> :</p>
+    <pre class="mono"><code>512 Mb ÷ 128 Mb = 4 blocs   →  B1, B2, B3, B4
+4 blocs × facteur 4          →  16 réplicas à répartir sur les 6 DataNodes</code></pre>
+
+    <table class="tbl">
+      <tr><th>Terme</th><th>Rôle</th><th>Analogie « bibliothèque »</th></tr>
+      <tr><td class="mono">NameNode</td><td>Métadonnées, index</td><td>Le bibliothécaire et son catalogue</td></tr>
+      <tr><td class="mono">DataNode</td><td>Stockage des blocs</td><td>Les étagères qui tiennent les volumes</td></tr>
+      <tr><td class="mono">Bloc</td><td>Morceau de fichier (128 Mb)</td><td>Un volume découpé d'un gros livre</td></tr>
+      <tr><td class="mono">Réplication</td><td>Copies de sécurité</td><td>Le même volume rangé sur plusieurs étagères</td></tr>
+    </table>
+  </section>
+
+  <!-- 03 PUT/GET -->
+  <section id="putget" class="hdfs">
+    <div class="eyebrow"><span class="no">03</span> HDFS — flux de données</div>
+    <h2>PUT (écrire) &amp; GET (lire)</h2>
+    <p>PUT et GET existent déjà : ce sont les commandes pour <strong>déposer</strong> et <strong>récupérer</strong> un fichier. Ce qui compte à l'examen, c'est de savoir <strong>comment les données circulent</strong> dans le cluster. Le client passe par la librairie <span class="mono" style="font-size:13px">Hadoop</span> qui orchestre les échanges.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 470" role="img" aria-label="Schéma des flux HDFS PUT et GET">
+        <defs>
+          <marker id="ab" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#2f5fe0"/></marker>
+          <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d23b3f"/></marker>
+          <marker id="apipe" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#2f5fe0"/></marker>
+        </defs>
+        <style>
+          .bx{fill:#fff;stroke:#141a22;stroke-width:1.8}
+          .ov{fill:#fff;stroke:#141a22;stroke-width:1.8}
+          .tt{font-family:"Space Grotesk";font-weight:600;font-size:15px;fill:#141a22}
+          .ts{font-family:"JetBrains Mono";font-size:11px;fill:#5c6773}
+          .bl{font-family:"JetBrains Mono";font-weight:600;font-size:12px;fill:#141a22}
+          .fp{stroke:#2f5fe0;stroke-width:2;fill:none}
+          .fr{stroke:#d23b3f;stroke-width:2;fill:none}
+          .md{stroke:#141a22;stroke-width:1.4;fill:none;stroke-dasharray:5 4;opacity:.5}
+          .nb{font-family:"JetBrains Mono";font-weight:700;font-size:13px;fill:#2f5fe0}
+          .nr{font-family:"JetBrains Mono";font-weight:700;font-size:13px;fill:#d23b3f}
+        </style>
+
+        <!-- NameNodes -->
+        <ellipse class="ov" cx="560" cy="52" rx="108" ry="34"/>
+        <text x="560" y="49" text-anchor="middle" class="tt">NameNode</text>
+        <text x="560" y="66" text-anchor="middle" class="ts">Main — métadonnées</text>
+        <ellipse class="ov" cx="808" cy="52" rx="80" ry="30" stroke-dasharray="4 3"/>
+        <text x="808" y="49" text-anchor="middle" class="tt" font-size="13">NameNode</text>
+        <text x="808" y="65" text-anchor="middle" class="ts">backup</text>
+        <path class="md" d="M668 52 L728 52" marker-end="url(#ab)"/>
+        <text x="700" y="34" text-anchor="middle" class="nb">5′</text>
+
+        <!-- Hadoop -->
+        <rect class="bx" x="300" y="120" width="150" height="66" rx="6"/>
+        <text x="375" y="150" text-anchor="middle" class="tt">HADOOP</text>
+        <text x="375" y="169" text-anchor="middle" class="ts">librairie cliente</text>
+
+        <!-- Client -->
+        <ellipse class="ov" cx="120" cy="210" rx="82" ry="38"/>
+        <text x="120" y="215" text-anchor="middle" class="tt">CLIENT</text>
+
+        <!-- arrows client<->hadoop -->
+        <path class="fp" d="M198 188 C 250 165, 275 150, 300 145" marker-end="url(#ab)"/>
+        <text x="250" y="150" class="nb">1</text><text x="238" y="150" class="nr">1</text>
+        <path class="fr" d="M300 165 C 255 190, 215 200, 190 205" marker-end="url(#ar)"/>
+        <text x="250" y="196" class="nr">5</text>
+
+        <!-- hadoop<->NN -->
+        <path class="fp" d="M450 132 C 505 96, 520 82, 500 70" marker-end="url(#ab)"/>
+        <text x="495" y="100" class="nb">2</text><text x="478" y="100" class="nr">2</text>
+        <path class="fp" d="M508 78 C 480 118, 470 130, 452 142" marker-end="url(#ab)"/>
+        <text x="520" y="126" class="nb">3</text><text x="536" y="126" class="nr">3</text>
+
+        <!-- hadoop -> DN -->
+        <path class="fp" d="M330 186 C 300 240, 300 285, 300 300" marker-end="url(#ab)"/>
+        <text x="305" y="250" class="nb">4</text>
+        <path class="fr" d="M310 186 C 265 250, 260 290, 262 300" marker-end="url(#ar)"/>
+        <text x="255" y="250" class="nr">4</text>
+
+        <!-- DN spine -->
+        <path class="md" d="M560 86 L560 270 L300 270 M560 270 L820 270"/>
+        <path class="md" d="M300 270 L820 270"/>
+
+        <!-- DataNodes -->
+        <g>
+          <rect class="bx" x="255" y="300" width="86" height="56" rx="5"/>
+          <rect class="bx" x="365" y="300" width="86" height="56" rx="5"/>
+          <rect class="bx" x="475" y="300" width="86" height="56" rx="5"/>
+          <rect class="bx" x="585" y="300" width="86" height="56" rx="5"/>
+          <rect class="bx" x="695" y="300" width="86" height="56" rx="5"/>
+          <rect class="bx" x="805" y="300" width="86" height="56" rx="5"/>
+          <text x="298" y="325" text-anchor="middle" class="tt" font-size="13">DN 1</text>
+          <text x="408" y="325" text-anchor="middle" class="tt" font-size="13">DN 2</text>
+          <text x="518" y="325" text-anchor="middle" class="tt" font-size="13">DN 3</text>
+          <text x="628" y="325" text-anchor="middle" class="tt" font-size="13">DN 4</text>
+          <text x="738" y="325" text-anchor="middle" class="tt" font-size="13">DN 5</text>
+          <text x="848" y="325" text-anchor="middle" class="tt" font-size="13">DN 6</text>
+          <text x="298" y="345" text-anchor="middle" class="bl">B1 B2 B3</text>
+          <text x="408" y="345" text-anchor="middle" class="bl">B1 B3 B4</text>
+          <text x="518" y="345" text-anchor="middle" class="bl">B2 B3 B4</text>
+          <text x="628" y="345" text-anchor="middle" class="bl">B1 B2 B4</text>
+          <text x="738" y="345" text-anchor="middle" class="bl">B1 B4</text>
+          <text x="848" y="345" text-anchor="middle" class="ts">(libre)</text>
+          <!-- pipeline -->
+          <path class="fp" d="M341 328 L363 328" marker-end="url(#apipe)"/>
+          <path class="fp" d="M451 328 L473 328" marker-end="url(#apipe)"/>
+          <path class="fp" d="M561 328 L583 328" marker-end="url(#apipe)"/>
+          <path class="fp" d="M671 328 L693 328" marker-end="url(#apipe)"/>
+          <path class="fp" d="M781 328 L803 328" marker-end="url(#apipe)"/>
+        </g>
+        <text x="573" y="392" text-anchor="middle" class="ts">Pipeline de réplication — chaque bloc en 4 exemplaires (4 blocs × 4 = 16 réplicas)</text>
+        <!-- legend -->
+        <rect x="255" y="418" width="14" height="10" fill="#2f5fe0"/><text x="276" y="427" class="ts">PUT (écriture)</text>
+        <rect x="400" y="418" width="14" height="10" fill="#d23b3f"/><text x="421" y="427" class="ts">GET (lecture)</text>
+        <line x1="545" y1="423" x2="575" y2="423" class="md"/><text x="582" y="427" class="ts">métadonnées</text>
+      </svg>
+      <figcaption>Flux combinés PUT (bleu) et GET (rouge). Les données ne transitent jamais par le NameNode.</figcaption>
+    </figure>
+
+    <h3><span class="tag b">PUT</span> Écriture — <span class="mono" style="font-size:14px">hdfs dfs -put fichier /data</span></h3>
+    <ol class="steps">
+      <li><strong>CLIENT → HADOOP</strong> : demande à déposer le fichier.</li>
+      <li><strong>HADOOP → NameNode Main</strong> : « où placer les 4 blocs ? »</li>
+      <li><strong>NameNode → HADOOP</strong> : renvoie la liste ordonnée des DataNodes cibles pour chaque bloc.</li>
+      <li><strong>HADOOP → DataNodes</strong> : écrit chaque bloc sur le 1<sup>er</sup> DataNode, qui le relaie au suivant → <strong>pipeline de réplication</strong> jusqu'à obtenir 4 copies. Un ACK remonte le pipeline.</li>
+      <li><strong>Main → backup (5′)</strong> : les métadonnées sont synchronisées vers le NameNode de secours.</li>
+    </ol>
+
+    <h3><span class="tag r">GET</span> Lecture — <span class="mono" style="font-size:14px">hdfs dfs -get /data/fichier</span></h3>
+    <ol class="steps read">
+      <li><strong>CLIENT → HADOOP</strong> : demande à récupérer le fichier.</li>
+      <li><strong>HADOOP → NameNode Main</strong> : « où sont les blocs de ce fichier ? »</li>
+      <li><strong>NameNode → HADOOP</strong> : renvoie les emplacements (DataNodes les plus proches).</li>
+      <li><strong>HADOOP → DataNodes</strong> : lit <strong>une seule copie</strong> de chaque bloc, en parallèle.</li>
+      <li><strong>HADOOP → CLIENT</strong> : réassemble B1→B4 et rend le fichier de 512 Mb.</li>
+    </ol>
+
+    <div class="callout key"><b>Réflexe d'examen —</b> Le NameNode n'intervient que pour les <strong>métadonnées</strong> (étapes 2, 3, 5′) : il dit <em>qui est où</em>. Les octets circulent en <strong>direct</strong> entre HADOOP et les DataNodes. C'est le piège classique.</div>
+  </section>
+
+  <!-- 04 PANNES -->
+  <section id="panne" class="hdfs">
+    <div class="eyebrow"><span class="no">04</span> HDFS — tolérance aux pannes</div>
+    <h2>Que se passe-t-il quand une machine tombe ?</h2>
+    <p>C'est tout l'intérêt de la réplication. Deux scénarios à connaître :</p>
+    <div class="grid two">
+      <div class="mini"><h4>Un DataNode tombe</h4><p>Le NameNode ne reçoit plus son <em>heartbeat</em>. Il le déclare mort, repère les blocs qui n'ont plus assez de copies, et ordonne à d'autres DataNodes de <strong>recréer les réplicas manquants</strong> pour revenir au facteur 4. Aucune perte : les autres copies existent.</p></div>
+      <div class="mini"><h4>Le NameNode tombe</h4><p>Sans lui, plus d'annuaire → le cluster est aveugle. D'où les <strong>2 NameNodes</strong> : un <em>Standby</em> prend le relais (haute disponibilité), ou un <em>Secondary</em> aide à conserver l'état des métadonnées.</p></div>
+    </div>
+    <div class="def"><div class="term">Heartbeat</div><p>Signal périodique envoyé par chaque DataNode au NameNode pour dire « je suis vivant ». Son absence prolongée = panne détectée.</p></div>
+    <div class="def"><div class="term">Rack awareness (placement)</div><p>HDFS évite de mettre toutes les copies d'un bloc sur la même armoire (<em>rack</em>) : ainsi, la panne d'un rack entier ne détruit pas toutes les copies. Compromis entre sécurité et vitesse d'écriture.</p></div>
+  </section>
+
+  <!-- 05 MAPREDUCE -->
+  <section id="mapreduce" class="mr">
+    <div class="eyebrow"><span class="no">05</span> MapReduce — principe</div>
+    <h2>Envoyer le calcul vers les données</h2>
+    <p>Les données sont déjà éclatées sur les machines par HDFS. Plutôt que de tout rapatrier (lent, coûteux en réseau), MapReduce <strong>déplace le programme là où sont les données</strong> et l'exécute en parallèle. C'est le principe de <em>data locality</em>.</p>
+    <p>Tout circule sous forme de couples <strong>clé → valeur</strong> <span class="mono" style="font-size:13px">(key, value)</span>. Un traitement MapReduce enchaîne quatre phases :</p>
+
+    <div class="grid two">
+      <div class="mini"><h4><span class="tag t">1</span> Split</h4><p>Les données d'entrée sont découpées en morceaux, un par tâche Map (aligné sur les blocs HDFS).</p></div>
+      <div class="mini"><h4><span class="tag t">2</span> Map</h4><p>Pour chaque enregistrement, produit des couples <span class="mono" style="font-size:13px">(clé, valeur)</span>. Ne fait <strong>aucun regroupement</strong>. S'exécute en parallèle.</p></div>
+      <div class="mini"><h4><span class="tag t">3</span> Shuffle &amp; Sort</h4><p>Rassemble et trie <strong>toutes les valeurs d'une même clé</strong> au même endroit. Fait <strong>automatiquement</strong> par le framework.</p></div>
+      <div class="mini"><h4><span class="tag t">4</span> Reduce</h4><p>Reçoit une clé et sa liste de valeurs, les <strong>agrège</strong> (somme, max, moyenne…) et produit le résultat final.</p></div>
+    </div>
+
+    <div class="callout"><b>Point piège fréquent —</b> le <strong>Shuffle</strong> est souvent l'étape la plus coûteuse : elle déplace des données <em>entre machines</em> à travers le réseau et les trie. On l'optimise avec un <strong>Combiner</strong> (un « mini-reduce » local exécuté côté Map avant l'envoi, qui réduit le volume transféré).</p></div>
+  </section>
+
+  <!-- 06 WORD COUNT -->
+  <section id="wordcount" class="mr">
+    <div class="eyebrow"><span class="no">06</span> MapReduce — cas pratique</div>
+    <h2>Word Count, étape par étape</h2>
+    <p>Compter les occurrences de chaque mot. Prenons la phrase <span class="mono" style="font-size:13.5px">"le chat dort le chien dort le chat"</span>, répartie sur deux splits :</p>
+
+    <figure>
+      <svg viewBox="0 0 900 430" role="img" aria-label="Pipeline MapReduce Word Count">
+        <defs>
+          <marker id="am" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0f9d8f"/></marker>
+        </defs>
+        <style>
+          .lab{font-family:"Space Grotesk";font-weight:600;font-size:14px;fill:#0f9d8f}
+          .cell{font-family:"JetBrains Mono";font-size:12px;fill:#141a22}
+          .bxs{fill:#e2f5f2;stroke:#0f9d8f;stroke-width:1.4}
+          .bxm{fill:#eef7ff;stroke:#2f5fe0;stroke-width:1.4}
+          .bxo{fill:#fff3e6;stroke:#e08a2f;stroke-width:1.4}
+          .fl{stroke:#0f9d8f;stroke-width:1.6;fill:none}
+        </style>
+        <!-- column headers -->
+        <text x="95"  y="26" text-anchor="middle" class="lab">SPLIT</text>
+        <text x="300" y="26" text-anchor="middle" class="lab">MAP</text>
+        <text x="540" y="26" text-anchor="middle" class="lab">SHUFFLE &amp; SORT</text>
+        <text x="800" y="26" text-anchor="middle" class="lab">REDUCE</text>
+
+        <!-- splits -->
+        <rect class="bxs" x="20" y="70"  width="150" height="60" rx="6"/>
+        <text x="95" y="95"  text-anchor="middle" class="cell">"le chat dort"</text>
+        <rect class="bxs" x="20" y="250" width="150" height="80" rx="6"/>
+        <text x="95" y="285" text-anchor="middle" class="cell">"le chien dort</text>
+        <text x="95" y="303" text-anchor="middle" class="cell">le chat"</text>
+
+        <!-- maps -->
+        <rect class="bxm" x="215" y="55" width="170" height="90" rx="6"/>
+        <text x="300" y="78"  text-anchor="middle" class="cell">(le,1)</text>
+        <text x="300" y="98"  text-anchor="middle" class="cell">(chat,1)</text>
+        <text x="300" y="118" text-anchor="middle" class="cell">(dort,1)</text>
+
+        <rect class="bxm" x="215" y="235" width="170" height="120" rx="6"/>
+        <text x="300" y="258" text-anchor="middle" class="cell">(le,1) (chien,1)</text>
+        <text x="300" y="280" text-anchor="middle" class="cell">(dort,1) (le,1)</text>
+        <text x="300" y="302" text-anchor="middle" class="cell">(chat,1)</text>
+
+        <path class="fl" d="M170 100 L213 100" marker-end="url(#am)"/>
+        <path class="fl" d="M170 290 L213 295" marker-end="url(#am)"/>
+
+        <!-- shuffle -->
+        <rect class="bxs" x="430" y="70"  width="210" height="34" rx="6"/><text x="440" y="92" class="cell">(le, [1,1,1])</text>
+        <rect class="bxs" x="430" y="118" width="210" height="34" rx="6"/><text x="440" y="140" class="cell">(chat, [1,1])</text>
+        <rect class="bxs" x="430" y="166" width="210" height="34" rx="6"/><text x="440" y="188" class="cell">(dort, [1,1])</text>
+        <rect class="bxs" x="430" y="214" width="210" height="34" rx="6"/><text x="440" y="236" class="cell">(chien, [1])</text>
+
+        <path class="fl" d="M385 100 C 405 100, 410 88, 428 88"/>
+        <path class="fl" d="M385 290 C 405 250, 410 200, 428 182" marker-end="url(#am)"/>
+
+        <!-- reduce -->
+        <rect class="bxo" x="700" y="70"  width="185" height="34" rx="6"/><text x="712" y="92"  class="cell">(le, 3)</text>
+        <rect class="bxo" x="700" y="118" width="185" height="34" rx="6"/><text x="712" y="140" class="cell">(chat, 2)</text>
+        <rect class="bxo" x="700" y="166" width="185" height="34" rx="6"/><text x="712" y="188" class="cell">(dort, 2)</text>
+        <rect class="bxo" x="700" y="214" width="185" height="34" rx="6"/><text x="712" y="236" class="cell">(chien, 1)</text>
+
+        <path class="fl" d="M640 87 L698 87" marker-end="url(#am)"/>
+        <path class="fl" d="M640 135 L698 135" marker-end="url(#am)"/>
+        <path class="fl" d="M640 183 L698 183" marker-end="url(#am)"/>
+        <path class="fl" d="M640 231 L698 231" marker-end="url(#am)"/>
+
+        <text x="450" y="300" class="cell" fill="#5c6773" font-size="11">Shuffle : regroupe les mêmes clés · Sort : les trie</text>
+        <text x="792" y="300" text-anchor="middle" class="cell" fill="#5c6773" font-size="11">Reduce : somme des listes</text>
+      </svg>
+      <figcaption>Split → Map → Shuffle &amp; Sort → Reduce. Résultat : le=3, chat=2, dort=2, chien=1.</figcaption>
+    </figure>
+
+    <h3>Pseudo-code (forme canonique)</h3>
+    <pre><code><span class="c-kw">def</span> <span class="c-fn">map</span>(key, value):        <span class="c-com"># key = nom du doc, value = son texte</span>
+    inter = []
+    <span class="c-kw">for</span> word <span class="c-kw">in</span> value.split():
+        inter.append((word, <span class="c-num">1</span>))   <span class="c-com"># on émet (mot, 1), sans compter</span>
+    <span class="c-kw">return</span> inter
+
+<span class="c-kw">def</span> <span class="c-fn">reduce</span>(key, values):     <span class="c-com"># key = un mot, values = liste de 1</span>
+    result = <span class="c-num">0</span>
+    <span class="c-kw">for</span> c <span class="c-kw">in</span> values:
+        result = result + c
+    <span class="c-kw">return</span> (key, result)</code></pre>
+
+    <h3>Implémentation Python complète</h3>
+    <pre><code><span class="c-com"># Données d'entrée</span>
+phrase = <span class="c-str">"le chat dort le chien dort le chat"</span>
+mots = phrase.split()
+
+<span class="c-com"># MAP : (mot, 1) pour chaque mot</span>
+mapped = [(mot, <span class="c-num">1</span>) <span class="c-kw">for</span> mot <span class="c-kw">in</span> mots]
+
+<span class="c-com"># SHUFFLE : regrouper les 1 par mot</span>
+shuffled = []
+<span class="c-kw">for</span> mot, valeur <span class="c-kw">in</span> mapped:
+    trouve = <span class="c-kw">False</span>
+    <span class="c-kw">for</span> i <span class="c-kw">in</span> <span class="c-fn">range</span>(<span class="c-fn">len</span>(shuffled)):
+        <span class="c-kw">if</span> shuffled[i][<span class="c-num">0</span>] == mot:
+            shuffled[i][<span class="c-num">1</span>].append(valeur)
+            trouve = <span class="c-kw">True</span>
+            <span class="c-kw">break</span>
+    <span class="c-kw">if</span> <span class="c-kw">not</span> trouve:
+        shuffled.append((mot, [valeur]))
+
+<span class="c-com"># REDUCE : somme des 1 pour chaque mot</span>
+reduced = [(mot, <span class="c-fn">sum</span>(valeurs)) <span class="c-kw">for</span> mot, valeurs <span class="c-kw">in</span> shuffled]
+
+<span class="c-fn">print</span>(reduced)  <span class="c-com"># [('le',3), ('chat',2), ('dort',2), ('chien',1)]</span></code></pre>
+    <p style="font-size:16px;color:var(--muted)">Note : dans le vrai Hadoop, tu n'écris <strong>que</strong> <span class="mono" style="font-size:13px">map()</span> et <span class="mono" style="font-size:13px">reduce()</span>. Le Shuffle &amp; Sort est fourni par le framework — le code ci-dessus le simule à la main pour bien voir ce qui se passe.</p>
+  </section>
+
+  <!-- 07 EXAM -->
+  <section id="exam" class="mr">
+    <div class="eyebrow"><span class="no">07</span> Entraînement</div>
+    <h2>Questions ouvertes probables</h2>
+    <p>Réfléchis à ta réponse, puis déplie pour comparer.</p>
+
+    <details><summary><span class="q">Q1</span> Expliquez la différence entre HDFS et MapReduce.</summary>
+      <div class="ans"><strong>HDFS</strong> gère le <strong>stockage</strong> distribué : il découpe les fichiers en blocs, les répartit sur les DataNodes et les réplique. <strong>MapReduce</strong> gère le <strong>traitement</strong> distribué : il exécute un calcul en parallèle là où les données sont stockées, puis agrège les résultats. L'un range les données, l'autre les traite ; les deux reposent sur la même idée de répartition sur un cluster.</div>
+    </details>
+
+    <details><summary><span class="q">Q2</span> Quel est le rôle du NameNode ? Pourquoi est-il critique ?</summary>
+      <div class="ans">Le NameNode est le <strong>maître</strong> : il stocke les <strong>métadonnées</strong> (arborescence + table bloc→DataNodes). Il ne contient aucune donnée réelle. Il est critique car sans lui, on ne sait plus où se trouvent les blocs : le cluster devient inutilisable. D'où la présence d'un second NameNode (<em>Standby</em> / <em>Secondary</em>) pour la haute disponibilité.</div>
+    </details>
+
+    <details><summary><span class="q">Q3</span> Un fichier de 512 Mb, blocs de 128 Mb, réplication 4 : combien de blocs et de réplicas ?</summary>
+      <div class="ans">512 ÷ 128 = <strong>4 blocs</strong> (B1–B4). Avec un facteur de réplication de 4, chaque bloc a 4 copies → <strong>4 × 4 = 16 réplicas</strong> répartis sur les DataNodes, sans jamais deux copies du même bloc sur la même machine.</div>
+    </details>
+
+    <details><summary><span class="q">Q4</span> Décrivez le déroulement d'un PUT (écriture) dans HDFS.</summary>
+      <div class="ans"><ul><li>Le client demande à écrire ; le NameNode renvoie les DataNodes cibles par bloc.</li><li>Le client découpe le fichier en blocs de 128 Mb.</li><li>Chaque bloc est écrit sur un premier DataNode qui le relaie aux suivants : <strong>pipeline de réplication</strong> jusqu'à 4 copies.</li><li>Un accusé remonte le pipeline ; le client notifie le NameNode de la fin.</li></ul>Les données ne passent jamais par le NameNode.</div>
+    </details>
+
+    <details><summary><span class="q">Q5</span> Pourquoi les données ne transitent-elles pas par le NameNode ?</summary>
+      <div class="ans">Pour éviter d'en faire un <strong>goulot d'étranglement</strong>. Si tout le volume passait par lui, il saturerait immédiatement. Il ne gère donc que les métadonnées (légères) et laisse les octets circuler <strong>directement</strong> entre client et DataNodes. Cela permet aussi de lire/écrire plusieurs blocs <strong>en parallèle</strong>.</div>
+    </details>
+
+    <details><summary><span class="q">Q6</span> À quoi servent les phases Map, Shuffle et Reduce ?</summary>
+      <div class="ans"><strong>Map</strong> transforme chaque enregistrement en couples <span class="mono" style="font-size:13px">(clé, valeur)</span> en parallèle, sans regrouper. <strong>Shuffle &amp; Sort</strong> rassemble et trie automatiquement toutes les valeurs d'une même clé sur un même nœud. <strong>Reduce</strong> agrège la liste de valeurs de chaque clé (ici, une somme) et produit le résultat final.</div>
+    </details>
+
+    <details><summary><span class="q">Q7</span> Pourquoi le Shuffle est-il souvent l'étape la plus coûteuse ?</summary>
+      <div class="ans">Parce qu'il implique un transfert de données <strong>entre machines à travers le réseau</strong> (les valeurs d'une clé sont éparpillées sur tous les nœuds Map) plus un tri. Réseau + tri = coûteux. On l'atténue avec un <strong>Combiner</strong> : un mini-reduce local exécuté côté Map, qui réduit le volume envoyé sur le réseau.</div>
+    </details>
+
+    <details><summary><span class="q">Q8</span> Qu'est-ce que la « data locality » et pourquoi est-elle importante ?</summary>
+      <div class="ans">C'est le fait d'exécuter le calcul <strong>là où la donnée est déjà stockée</strong>, au lieu de déplacer la donnée vers le calcul. Comme déplacer un programme (quelques Ko) coûte bien moins cher que déplacer des téraoctets, cela réduit énormément le trafic réseau et accélère le traitement. C'est le lien direct entre MapReduce et HDFS.</div>
+    </details>
+
+    <details><summary><span class="q">Q9</span> Que se passe-t-il si un DataNode tombe en panne ?</summary>
+      <div class="ans">Le NameNode cesse de recevoir son <em>heartbeat</em> et le déclare mort. Il identifie les blocs sous-répliqués et déclenche la <strong>re-réplication</strong> depuis les copies restantes vers d'autres DataNodes, pour rétablir le facteur de réplication. Aucune donnée n'est perdue tant qu'une copie survit.</div>
+    </details>
+
+    <details><summary><span class="q">Q10</span> Pourquoi utiliser de gros blocs (128 Mb) plutôt que de petits ?</summary>
+      <div class="ans">De gros blocs réduisent le <strong>nombre de métadonnées</strong> que le NameNode doit garder en mémoire, limitent la fragmentation, et favorisent la <strong>lecture séquentielle</strong> (on lit un long flux continu plutôt que de sauter partout). L'inconvénient serait le gaspillage pour de très petits fichiers, mais HDFS est conçu pour de gros fichiers.</div>
+    </details>
+  </section>
+
+  <!-- 08 GLOSSAIRE -->
+  <section id="glossaire">
+    <div class="eyebrow"><span class="no">08</span> Antisèche</div>
+    <h2>Glossaire express</h2>
+    <table class="tbl">
+      <tr><th>Terme</th><th>En une phrase</th></tr>
+      <tr><td class="mono">Cluster</td><td>Ensemble de machines qui coopèrent comme un seul système.</td></tr>
+      <tr><td class="mono">NameNode</td><td>Maître : métadonnées et localisation des blocs.</td></tr>
+      <tr><td class="mono">DataNode</td><td>Esclave : stocke physiquement les blocs.</td></tr>
+      <tr><td class="mono">Bloc</td><td>Morceau de fichier (128 Mb par défaut).</td></tr>
+      <tr><td class="mono">Réplication</td><td>Copies d'un bloc sur des machines différentes (facteur = nb de copies).</td></tr>
+      <tr><td class="mono">Heartbeat</td><td>Signal « je suis vivant » du DataNode vers le NameNode.</td></tr>
+      <tr><td class="mono">PUT / GET</td><td>Déposer / récupérer un fichier dans HDFS.</td></tr>
+      <tr><td class="mono">Pipeline</td><td>Chaîne de DataNodes qui se relaient un bloc pour le répliquer.</td></tr>
+      <tr><td class="mono">MapReduce</td><td>Modèle de traitement parallèle en (clé, valeur).</td></tr>
+      <tr><td class="mono">Map</td><td>Émet des couples (clé, valeur) en parallèle.</td></tr>
+      <tr><td class="mono">Shuffle &amp; Sort</td><td>Regroupe et trie les valeurs par clé (automatique).</td></tr>
+      <tr><td class="mono">Reduce</td><td>Agrège les valeurs d'une clé (somme, max…).</td></tr>
+      <tr><td class="mono">Combiner</td><td>Mini-reduce local pour alléger le Shuffle.</td></tr>
+      <tr><td class="mono">Data locality</td><td>Exécuter le calcul là où sont les données.</td></tr>
+      <tr><td class="mono">YARN</td><td>Gestionnaire de ressources (CPU/mémoire) du cluster.</td></tr>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  <div class="r">
+    Fiche de révision — Écosystème Hadoop · HDFS &amp; MapReduce.<br>
+    Cluster de référence : 2 NameNodes · 6 DataNodes · réplication 4 · bloc 128 Mb · fichier 512 Mb = 4 blocs.
+  </div>
+</footer>
+
+</body>
+</html>
